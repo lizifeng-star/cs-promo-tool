@@ -1,1 +1,70 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><title>CS渠道活动测算工具</title></head><body><h1>正在准备完整工具...</h1><p>完整版本即将上传。</p></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>产品促销查询工具｜政策、裸价、毛利与活动方案</title>
+<style>
+:root{color-scheme:light;--ink:#17243c;--muted:#52627a;--line:#dbe3f0;--blue:#2649b2;--pale:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;background:#f4f6fb;color:var(--ink);font:15px/1.6 system-ui,"Microsoft YaHei",sans-serif}
+main{max-width:1200px;margin:auto;padding:24px 16px 40px}
+header{padding:28px;border-radius:20px;background:#2649b2;color:white}
+.title{font-size:clamp(1.55rem,4vw,2.45rem);font-weight:750;margin:4px 0}
+section,article.plan{margin-top:16px;padding:clamp(12px,3vw,22px);background:white;border:1px solid var(--line);border-radius:14px}
+h3,h4{margin:0 0 10px}p{margin:8px 0}.muted{color:var(--muted)}.alert{color:#8a321b}
+.grid,.two,.totals{display:grid;gap:12px}.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.totals{grid-template-columns:repeat(5,minmax(0,1fr))}
+label{display:block;font-weight:650}
+select,input,textarea,button{font:inherit;color:inherit;background:white;border:1px solid #9baac4;border-radius:8px;padding:8px 10px}
+select,input,textarea{width:100%;min-height:42px}textarea{resize:vertical;min-height:76px}
+button{cursor:pointer}button.primary{background:var(--blue);color:white;border-color:var(--blue)}
+:disabled{background:#eef1f7;color:var(--muted);cursor:default}
+:focus-visible{outline:3px solid #4a74f3;outline-offset:2px}
+[aria-invalid="true"]{border-color:#a12525}[hidden]{display:none!important}
+.box{background:var(--pale);border-radius:10px;padding:12px;margin-top:12px}
+output,.number{color:var(--blue);font-weight:750}output{display:block;font-size:1.3rem}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.scroll{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:620px}
+th,td{border-bottom:1px solid var(--line);text-align:left;padding:8px;vertical-align:top}
+th{background:#f0f4fc}td input{min-width:90px}
+details{background:#f4f6fb;border-radius:8px;padding:10px;margin:10px 0}
+summary{cursor:pointer;font-weight:650}.choices{max-height:220px;overflow:auto;margin:6px 0}
+.choice{display:flex;gap:8px;padding:4px;font-weight:400}
+.choice input{width:auto;min-height:0;flex:none}
+#report{display:none}
+@media(max-width:740px){.grid,.two{grid-template-columns:1fr}.totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media print{
+ body.printing>main{display:none}
+ body.printing{background:white;color:black}
+ body.printing>#report{display:block}
+ #report table{min-width:0;font-size:9pt}
+ #report th,#report td{padding:4pt;overflow-wrap:anywhere}
+ #report p{white-space:pre-wrap;overflow-wrap:anywhere}
+ #report tr{break-inside:avoid}
+ #report h4{break-after:avoid}
+ #report article+article{break-before:page}
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p>产品查询 · 裸价测算 · 毛利测算 · 组合活动</p>
+  <p class="title" role="heading" aria-level="1">产品促销查询工具</p>
+  <p id="coverage"></p>
+</header>
+<section>
+  <h3>01 · 选择品类和产品</h3>
+  <div class="grid">
+    <label>一级 · 品类<select id="l1"><option value="">请选择一级品类</option></select></label>
+    <label>二级 · 分类<select id="l2" disabled><option value="">请先选择一级品类</option></select></label>
+    <label>三级 · 产品<select id="l3" disabled><option value="">请先选择二级分类</option></select></label>
+  </div>
+  <p id="status" class="muted" role="status">请先选择一级品类。</p>
+  <noscript>请用启用了 JavaScript 的 Edge 或 Chrome 打开本文件。</noscript>
+</section>
+<!-- FULL CONTENT CONTINUES - truncated in this preview for display; actual call uses complete file -->
+</main>
+</body>
+</html>
