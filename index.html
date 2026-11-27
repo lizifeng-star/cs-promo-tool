@@ -64,7 +64,719 @@ summary{cursor:pointer;font-weight:650}.choices{max-height:220px;overflow:auto;m
   <p id="status" class="muted" role="status">请先选择一级品类。</p>
   <noscript>请用启用了 JavaScript 的 Edge 或 Chrome 打开本文件。</noscript>
 </section>
-<!-- FULL CONTENT CONTINUES - truncated in this preview for display; actual call uses complete file -->
+<section>
+  <h3>02 · 公司政策</h3>
+  <p id="policy-empty" class="muted">请选择二级分类查看政策。</p>
+  <div id="policy" class="grid box" hidden>
+    <div>政策成本率<br><strong id="policy-rate" class="number"></strong></div>
+    <div>计算基准<br><strong>零售价</strong></div>
+    <div>政策说明<br><strong id="policy-note"></strong></div>
+  </div>
+</section>
+<section>
+  <h3>03 · 折后裸价计算</h3>
+  <p id="calc-empty" class="muted">请先选择二级分类。</p>
+  <div id="calc-panel" hidden>
+    <p><strong id="calc-type"></strong> <span id="calc-base" class="muted"></span></p>
+    <div id="mini-fields" class="two" hidden>
+      <label>实际返给客户的 Mini 点数<input id="points" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 5 个点"></label>
+      <label>Mini 变现倍数<input id="factor" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 1.2"></label>
+    </div>
+    <div id="gift-fields" class="two" hidden>
+      <label><span id="qty-label"></span><input id="gift-qty" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label><span id="price-label"></span><input id="gift-price" type="number" min="0" step="any" inputmode="decimal"></label>
+    </div>
+    <div class="box">
+      <div id="calc-label">折后裸价率</div>
+      <output id="calc-result" aria-labelledby="calc-label">待填写</output>
+      <p id="calc-note" class="muted"></p>
+    </div>
+  </div>
+</section>
+<section>
+  <h3>04 · 经销商与客户毛利测算</h3>
+  <div class="grid">
+    <label>供货方式<select id="mode" disabled>
+      <option value="">请选择供货方式</option><option value="mini">直接返 Mini</option><option value="net">裸价供货</option>
+    </select></label>
+    <label><span id="supply-label">客户供货折扣（%）</span><input id="supply" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 65" disabled></label>
+    <label>客户活动折扣（%）<input id="promo" type="number" min="0" step="any" inputmode="decimal" placeholder="例如 80" disabled></label>
+  </div>
+  <p class="muted">按零售价的百分比填写：65 表示按零售价的 65%，不是填 0.65。</p>
+  <div id="retained-field" hidden>
+    <label>经销商留取 Mini 点数<input id="retained" type="number" min="0" step="any" inputmode="decimal" placeholder="没有留取请填 0" disabled></label>
+  </div>
+  <div class="two box">
+    <div><span id="dealer-label">经销商毛利（占零售价）</span><output id="dealer" aria-labelledby="dealer-label">待填写</output></div>
+    <div><span id="client-label">客户毛利（占活动价）</span><output id="client" aria-labelledby="client-label">待填写</output></div>
+  </div>
+  <p id="gross-note" class="muted" role="status"></p>
+</section>
+<section>
+  <h3>05 · 产品明细</h3>
+  <p id="products-empty" class="muted">请选择二级分类查看产品。</p>
+  <div id="products-wrap" class="scroll" tabindex="0" aria-label="产品明细" hidden>
+    <table><thead><tr><th>条码</th><th>产品名称</th><th>零售价</th><th>政策成本率</th></tr></thead><tbody id="products"></tbody></table>
+  </div>
+</section>
+<section>
+  <h3>06 · 组合活动方案</h3>
+  <p class="muted">可跨品类多选产品。逐款填写数量和客户单件成本，建议活动价按整组填写。活动备注可留空。</p>
+  <div id="plans"></div>
+  <div class="toolbar">
+    <button id="add-plan" type="button">＋ 添加活动</button>
+    <button id="xlsx" class="primary" type="button">导出 Excel</button>
+    <button id="docx" type="button">导出 Word</button>
+    <button id="pdf" type="button">打印 / 保存为 PDF</button>
+  </div>
+  <p id="export-status" class="muted" role="status"></p>
+  <p class="muted">请在关闭或刷新页面前导出。活动输入不会自动保存，导出结果请复核。</p>
+</section>
 </main>
+<div id="report"></div>
+<script>
+"use strict";
+const groupData = [
+ ["W","女士护肤单支"],["S","女士护肤套包"],["M","男士"],["H","普通洗护"],
+ ["P","高端洗护"],["C","染发"],["K","彩妆"]
+];
+const policyData = `
+W01|AP 3.0 面霜|53.7|后补7%mini
+W02|RV专研 (含燕窝酸洁面125ml)|51.7|后补7%mini
+W03|HF（除洁面100ml）|40.7
+W04|HF洁面100ml|40.7
+W05|Facial others|54.7|后补7%mini
+W06|安瓶/YC/小白方面膜单支|41|后补5片面膜
+W07|洁颜水单支|32|后补2支95ml洁颜水
+W08|花萃净透卸妆油|49
+W09|Function others|52.6
+S01|Y26新年套包-AP950|50.5|后补2%mini
+S02|AP 2.0(410/520)/AP 3.0 (410/630/690)|52.5
+S03|AP 4.0-300|52.5
+S04|AP 4.0-430|52.5
+S05|Y26新年套包-RV540|45|后补1.5%mini
+S06|RV-240 175ml水|50.5
+S07|RV(300/540)|50.5
+S08|NR: RV (新/老系列)|50.1
+S09|紫熨斗370/紫熨斗380/YC390|54.5
+S10|Filler(310/450)|50.5
+S11|NR: HF葡萄籽|52.1
+S12|Y25防晒套包（匀净,柔紫）|34.4
+S13|Y25防晒套包（小金管,小银管）|40.1
+S14|Y26防晒新套包（小金管,匀净,柔紫,野王）|40.1
+S15|安瓶面膜/YC 3.0面膜套包(5+5片)|40.5
+S16|积雪草/玻尿酸膨润/葡萄籽 面膜15片装|40.5|后补5片面膜
+M01|特定3sku|49.1|后补5.3%mini
+M02|Single|44.1
+M03|虚拟混箱装|50.1|每6支洁面补5支50ml洁面
+M04|男士护肤套包|56.1
+H01|奇焕润发精油 100ml/30ml|44.6
+H02|Core Range洗发露单支-200ml/400ml/700ml|43.1
+H03|Core Range润发乳单支-200ml/400ml|43.1
+H04|Others|52.9
+H05|男士洗护|52.3
+P01|洗发露单支440ml-HAP/Airy/Gloss|38.6
+P02|洗发露单支440ml-EOC/AHF/Acid Bond/OC|37.1
+P03|润发乳单支440ml-HAP/EOC/AHF|37.1
+P04|Airy Tubemask 润发乳单支 200ml|36.1
+P05|Gloss Tubemask 润发乳单支 200ml|38.6
+P06|新EOC Tubemask 润发乳单支 200ml|36.1
+C01|臻萃精华油染发霜 (Oleor)|47.5
+C02|Others|54.5
+K01|彩妆单支|52.6
+K02|黑胖子|36
+`;
+const productData = `
+W05|6941594581374|270|复颜玻尿酸水光充盈玻色因晶露 130ML@270
+W05|6941594582043|380|复颜玻尿酸水光充盈玻色因全脸淡纹眼霜30ml@380
+W05|6941594581350|310|复颜玻尿酸水光充盈玻色因乳液 110ML@310
+W06|6923700923940|138|复颜玻尿酸水光充盈导入安瓶鲜注精华面膜 33g*5pc@138
+S16|6941594521233|228|复颜玻尿酸水光充盈导入淡纹膨润面膜 15PC@228
+W05|6923700971750|180|复颜玻尿酸水光洁面啫喱 125ml@180
+W05|6941594588984|310|复颜水光充盈水光肌精华乳110ML@310
+W02|6941594588397|300|复颜新专研紧致修护晚霜50ML
+W02|6941594588403|300|复颜新专研抗皱焕采眼霜 15ml@300
+W02|6941594588373|300|复颜新专研抗皱紧致面霜50ML@300
+W02|6941594588342|290|复颜新专研抗皱紧致乳110ml@290
+W02|6941594588311|240|复颜新专研清乳柔肤水130ML@240
+W02|6941594582487|240|复颜专研清乳柔肤水175ML@240
+W02|6941594588427|170|复颜专研滋润氨基洁面乳125ML@170
+H03|6941594588519|26|玻尿酸嘭嘭水光润发乳 200ml@26
+H03|6941594588526|46|玻尿酸嘭嘭水光润发乳 400ml@46
+P04|6941594584801|89|玻尿酸闪充水养润发乳200ml@89
+P03|6923700973969|119|玻尿酸水光润发乳 440ml@119
+H04|6955818216294|59|精油润养护发膜 250ml@59
+H03|6928820036631|79|精油润养润发乳 700ml
+H03|6946537059620|26|精油润养润发乳200ml
+H03|6946537059668|46|精油润养润发乳400ml
+P06|6941594589226|89|奇焕精油修护润发乳200ml@89
+H01|6941594582593|119|奇焕润发精油(适合多种发质) 100ml@119
+H01|6941594582654|119|奇焕润发精油(适合干枯沙发) 100ml -@119
+H01|6941594582623|119|奇焕润发精油(适合烫染发质) 100ml - Y24@119
+P03|6923700980271|119|强韧柔顺润发乳 440ML@119
+H03|6941594589547|26|闪耀柔顺亮泽润发乳 200ml@26
+H03|6941594589554|46|闪耀柔顺亮泽润发乳 400ml@46
+P05|6941594584658|89|酸护柔亮润发乳200ml@89
+H03|6955818201283|59|透明质酸水润护发膜250ml@59
+H03|6955818201269|26|透明质酸水润润发乳200ml
+H03|6955818201290|46|透明质酸水润润发乳400ml
+W05|6941594580902|300|金致臻颜花蜜胶原精粹水 130ml@300
+W05|6941594580681|450|金致臻颜花蜜胶原眼霜 20ml@450
+W05|6941594582012|220|金致臻颜花蜜胶原滋润洁颜乳 125ml@220
+W05|6941594583439|290|金致臻颜奢润洁颜乳 125ML@290
+W01|6941594583279|410|金致臻颜新花蜜胶原面霜 60ml@410
+W05|6941594583248|390|金致臻颜新花蜜胶原乳液 110ml@390
+M03|6955818204130|45|男士火山岩控油淸痘洁面膏100ml@45
+M03|6923492546938|45|男士劲能深层净化洁面膏@45
+M01|6941594581251|110|男士劲能特润护肤霜50ml@110
+M02|6923492544507|130|男士劲能醒肤露50ML@130
+M04|6941546985236|175|男士劲能醒肤型男礼套包-CS
+M01|6946537053789|45|男士控油炭爽冰感洁面膏100ml@45
+M01|6946537053659|45|男士控油炭爽净亮洁面膏100ml@45
+M03|6946537053642|45|男士控油炭爽抗黑头洁面膏100ml@45
+M03|6955818272078|45|男士控油炭爽双效洁面膏 100ml@45
+M02|6928820091838|160|男士锐能抗皱紧致多效霜 50ml@160
+M02|6955818271200|110|男士水能保湿酷爽水凝露 120ml@110
+M02|6955818277172|110|男士水能保湿强润霜 50ml@110
+M02|6923700959833|130|男士水能保湿增强爽肤水 130ML@130
+M02|6955818271248|130|男士水能保湿滋润乳 50ml@130
+M03|6955818272214|45|男士水能润泽双效洁面膏 100ml@45
+H05|6955818283463|45|男士去屑洗发露（薄荷酷爽）400ml
+H05|6955818283449|75|男士去屑洗发露（薄荷酷爽）700ml
+H05|6928820021811|25|男士去屑洗发露（活泉劲爽） 200ml
+H05|6928820022320|45|男士去屑洗发露（活泉劲爽）400ml
+H05|6928820022023|75|男士去屑洗发露（活泉劲爽）700ml
+H05|6955818283388|25|男士去屑洗发露（炭爽去油）200ml
+H05|6955818283395|45|男士去屑洗发露（炭爽去油）400ml
+H05|6955818283401|75|男士去屑洗发露（炭爽去油）700ml
+K01|6902395778196|160|纷泽滋润唇膏 RB301 3.7g新
+K01|6902395778202|160|纷泽滋润唇膏 RB402 3.7g新
+K01|6902395973034|175|纷泽滋润缎光细管唇膏 161 2g@175
+K01|6902395854234|175|纷泽滋润缎光细管唇膏 615 2.0g@175
+K01|6902395973041|175|纷泽滋润缎光细管唇膏 635 2g@175
+K01|6902395854241|175|纷泽滋润柔雾细管唇膏 196 2.0g
+K01|6902395854272|175|纷泽滋润柔雾细管唇膏 198 2.0g@175
+K01|6902395973669|175|纷泽滋润细管唇膏 129(新版) 2G
+K01|6902395973157|175|纷泽滋润细管唇膏 233 2g@175
+K01|6902395973676|175|纷泽滋润细管唇膏 275 (新版) 2G
+K01|6902395972273|260|复颜提拉紧肤积雪草精华粉底液 (新版) 100 30ml@260
+K01|6902395972280|260|复颜提拉紧肤积雪草精华粉底液 (新版) 110 30ml@260
+K01|6902395972297|260|复颜提拉紧肤积雪草精华粉底液 (新版) 120 30ml@260
+K01|6902395826750|169|恒放溢彩哑光持色粉底液 (新) 440 35ml
+K01|6902395826699|169|恒放溢彩哑光持色粉底液(新版)200 35ml
+K01|6902395614678|120|眉笔大师三头塑形眉笔 浅灰 2*0.2g@120
+K01|6902395390640|120|眉笔大师三头塑型眉笔 浅棕 2*0.2g@120
+K01|6902395390657|120|眉笔大师三头塑型眉笔 深棕 2*0.2g@120
+K01|6902395975687|120|奇焕光采粉嫩透亮修颜霜(新版)10 30ML@120
+K01|6902395975694|120|奇焕光采粉嫩透亮修颜霜(新版)20 30ML@120
+K01|6902395846666|145|印迹唇釉221(雾面) 7ML@145
+K01|6902395848844|189|恒放溢彩持妆喷雾 哑光版 100ML@189
+W08|6923700900705|149|花萃净透卸妆油 250ML@149
+W05|6941594513757|390|青春密码密集肌能精华液 50ML@390
+W07|6928820030189|129|三合一卸妆洁颜水倍润型 400ml@129
+W04|6941594580339|63|清润葡萄籽水嫩洁面乳 100ML(2024)
+C01|6923700941852|129|臻萃精华油染发霜 2.0 60g+60g+40ml+12ml@129
+C01|6923700941876|129|臻萃精华油染发霜 3.15 60g+60g+40ml+12ml
+C01|6923700941906|129|臻萃精华油染发霜 4.25 60g+60g+40ml+12ml
+C01|6923700941913|129|臻萃精华油染发霜 4.35 60g+60g+40ml+12ml
+C01|6923700941920|129|臻萃精华油染发霜 4.45 60g+60g+40ml+12ml
+C02|6941594506834|129|臻萃轻松染发乳 3号 200ml
+C02|6941594506841|129|臻萃轻松染发乳 4.52号 200ml
+C02|6941594506858|129|臻萃轻松染发乳4.56 200ml
+C02|6941594581756|129|臻萃染发霜5.17
+C02|6923492595127|79|卓韵霜1自然黑色
+C02|6923492597510|79|卓韵霜3
+C02|6923492510441|79|卓韵霜3.15深灰赤褐色
+C02|6923492510465|79|卓韵霜4
+C02|6923492510489|79|卓韵霜4.20深赤褐色
+C02|6923492590696|79|卓韵霜4.26紫棕色
+C02|6923492510502|79|卓韵霜4.45红铜棕色
+C02|6938181569211|79|卓韵霜护发染发霜4.35
+C02|6928820063330|99|卓韵霜染发霜1号 12ml+48g+48g+40ml
+C02|6928820063347|99|卓韵霜染发霜2号 12ml+48g+48g+40ml
+C02|6946537058265|89|卓韵霜时尚魅棕赋活养护染发霜5.64
+S14|6932313177183|200|CS UV pp1+2 美颜柔紫
+S09|6932313133530|380|复颜玻尿酸水光充盈全脸淡纹眼霜套装-CS@380
+S10|6932313111286|310|复颜玻色因乳液套装-CS 2025@310
+S07|6932313112887|300|复颜视黄醇专研面霜套装-CS 2025@300
+S07|6932313112863|540|复颜视黄醇专研水霜套装-CS 2025@540
+S08|6942125244638|410|复颜视黄醇专研系列洁水套装-CS@410
+S11|6932313198690|190|护肤葡萄籽乳液bom cs
+S06|6932313192506|240|女士护肤RV CS 175+30X2+25套包@240
+S04|6932313186925|430|小蜜罐4.0 60+50+65+30+30 cs@430
+S03|6932313186918|300|小蜜罐水4.0 130+50+30 cs@300
+P02|6941594581909|119|玻尿酸空气感洗发露 440ml@119
+H02|6941594588557|26|玻尿酸嘭嘭水光洗发露 200ml
+H02|6941594588564|46|玻尿酸嘭嘭水光洗发露400ml
+H02|6941594588588|79|玻尿酸嘭嘭水光洗发露700ml
+P02|6941594584863|119|玻尿酸水养洗发露 440ML@119
+H02|6928820069394|79|茶树植萃去屑净油洗发露 700ml
+H02|6946537059545|26|精油润养去屑洗发露200ml
+H02|6946537059583|46|精油润养去屑洗发露400ml
+H02|6955818202419|79|精油润养去屑洗发露700ml
+H02|6946537059705|26|精油润养洗发露200ml
+H02|6946537059743|46|精油润养洗发露400ml
+H02|6955818202372|79|精油润养洗发露700ml@79
+P02|6923700914047|119|奇焕精油洗发露（奇焕垂顺） 440ml
+P02|6923700980288|119|强韧柔顺洗发露 440ML
+H02|6941594589509|26|闪耀柔顺亮泽洗发露 200ml
+H02|6941594589516|46|闪耀柔顺亮泽洗发露 400ml
+H02|6941594589530|79|闪耀柔顺亮泽洗发露 700ml@79
+P01|6941594584634|119|酸护柔亮洗发露440ml@119
+H02|6955818274881|26|透明质酸水润去屑洗发露（倍爽）200ml
+H02|6955818274843|46|透明质酸水润去屑洗发露（倍爽）400ml
+H02|6928820007822|79|透明质酸水润去屑洗发露（倍爽）700ml
+H02|6955818201276|26|透明质酸水润去屑洗发露200ml
+H02|6955818201238|26|透明质酸水润洗发露200ml
+H02|6955818201245|46|透明质酸水润洗发露400ml
+H02|6955818202259|79|透明质酸水润洗发露700ml@79
+`;
+const $ = id => document.getElementById(id);
+const text = (id,value) => { $(id).textContent = value; };
+const el = (tag,value) => {
+  const n=document.createElement(tag);
+  if (value!==undefined) n.textContent=value;
+  return n;
+};
+const lines = s => s.trim().split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+const yuan = new Intl.NumberFormat("zh-CN",{style:"currency",currency:"CNY"});
+const percent = new Intl.NumberFormat("zh-CN",{style:"percent",minimumFractionDigits:2,maximumFractionDigits:2});
+const money = n => n===null ? "—" : yuan.format(n);
+const pct = n => Number.isFinite(n) ? percent.format(Math.abs(n)<0.00005?0:n) : "—";
+const policies = new Map(), catalogue = new Map();
+for (const line of lines(policyData)) {
+  const [id,name,raw,...rest]=line.split("|");
+  const note=rest.join("|").trim(), t=note.normalize("NFKC");
+  const gift=t.match(/(?:补|返(?:还)?|赠(?:送)?|送)\s*\d+\s*(支|片|瓶|包|盒|袋|件|套|个)/);
+  const six=/(?:^|[^\d])6\s*支[^；;。]*?(?:送|补|返|赠)\s*5\s*支/.test(t);
+  const type=!t?"none":six?"six":/\bmini\b/i.test(t)?"mini":gift?"gift":"unknown";
+  policies.set(id,{id,name,note,type,unit:six?"支":gift?.[1],rate:raw?.trim()?Number(raw)/100:NaN,raw,items:[]});
+}
+let skipped=0;
+for (const line of lines(productData)) {
+  const [id,code,raw,...rest]=line.split("|");
+  const p=policies.get(id), price=Number(raw), name=rest.join("|").trim();
+  if (!p||!/^\d{13}$/.test(code)||catalogue.has(code)||!name||!Number.isFinite(price)||price<=0) {skipped++;continue;}
+  const item={id,code,name,price};
+  catalogue.set(code,item);
+  p.items.push(item);
+}
+const active=[...policies.values()].filter(p=>p.items.length);
+const groups=groupData.filter(([id])=>active.some(p=>p.id.startsWith(id)));
+text("coverage",`${groups.length} 个一级品类 · ${active.length} 个二级分类 · ${catalogue.size} 款产品`+
+  (skipped?` · ${skipped} 条记录未加载`:""));
+
+const [l1,l2,l3,points,factor,giftQty,giftPrice,mode,supply,promo,retained]=
+  ["l1","l2","l3","points","factor","gift-qty","gift-price","mode","supply","promo","retained"].map($);
+const current=()=>policies.get(l2.value);
+const calcInputs=[points,factor,giftQty,giftPrice,supply,promo,retained];
+function fill(select,label,options) {
+  select.options.length=0;
+  select.add(new Option(label,""));
+  for (const [value,caption] of options) select.add(new Option(caption,value));
+  select.selectedIndex=0;
+  select.disabled=!options.length;
+}
+function sync2() {
+  fill(l2,l1.value?"请选择二级分类":"请先选择一级品类",
+    active.filter(p=>l1.value&&p.id.startsWith(l1.value)).map(p=>[p.id,p.name]));
+}
+function sync3() {
+  const p=current();
+  fill(l3,p?"全部产品":"请先选择二级分类",
+    p?p.items.map(i=>[i.code,`${i.name} · ${i.code}`]):[]);
+}
+function tableRow(parent,values) {
+  const tr=parent.insertRow();
+  for (const value of values) {
+    const td=tr.insertCell();
+    if (value instanceof Node) td.append(value); else td.textContent=value;
+  }
+  return tr;
+}
+function renderQuery() {
+  const p=current(), group=groups.find(g=>g[0]===l1.value);
+  const items=p?p.items.filter(i=>!l3.value||l3.value===i.code):[];
+  text("status",p?`${group?.[1]} › ${p.name} · 显示 ${items.length} / ${p.items.length} 款`:
+    group?`${group[1]} · 请选择二级分类。`:"请先选择一级品类。");
+  $("policy").hidden=!p; $("policy-empty").hidden=Boolean(p);
+  text("policy-rate",p?`${p.raw}%`:""); text("policy-note",p?p.note||"—":"");
+  $("products-wrap").hidden=!items.length; $("products-empty").hidden=Boolean(items.length);
+  text("products-empty",p?"暂无匹配产品。":"请选择二级分类查看产品。");
+  const body=$("products"); body.textContent="";
+  for (const i of items) tableRow(body,[i.code,i.name,money(i.price),`${p.raw}%`]);
+}
+function read(node,{whole=false,positive=false}={}) {
+  node.removeAttribute("aria-invalid");
+  if (node.value===""&&!node.validity.badInput) return null;
+  const n=node.valueAsNumber;
+  if (!Number.isFinite(n)||n<0||(positive&&n<=0)||(whole&&!Number.isSafeInteger(n))) {
+    node.setAttribute("aria-invalid","true"); return NaN;
+  }
+  return n;
+}
+const validRate=p=>Number.isFinite(p?.rate)&&p.rate>=0&&p.rate<=1;
+function calcResult(value,note="") {
+  text("calc-result",value);text("calc-note",note);
+}
+function calcNet(p) {
+  const type=p?.type, show=Boolean(p&&type!=="unknown"), six=type==="six", gift=six||type==="gift";
+  $("calc-panel").hidden=!show; $("calc-empty").hidden=show;
+  $("mini-fields").hidden=type!=="mini"; $("gift-fields").hidden=!gift;
+  if (!show) {
+    text("calc-empty",p?"暂未识别政策说明，不自动套用裸价率。":"请先选择二级分类。");
+    return null;
+  }
+  const i=p.items.find(i=>i.code===l3.value)||(p.items.length===1?p.items[0]:null);
+  text("calc-type",{none:"无后补",mini:"后补 Mini",gift:"返产品",six:"6 支送 5 支"}[type]);
+  text("calc-base",`｜政策成本率 ${p.raw}%`+(gift&&i?` · 基准：${i.name}（${money(i.price)}）`:""));
+  text("calc-label",six?"6 支合计裸价":"折后裸价率");
+  if (!validRate(p)) {calcResult("无法计算","请核对政策成本率。");return null;}
+  if (type==="none") {calcResult(pct(p.rate),"无后补，直接采用政策成本率。");return p.rate;}
+  if (gift) {
+    text("qty-label",`实际赠品数量（${p.unit}）`);
+    text("price-label",`赠品单件变现价（元/${p.unit}）`);
+  }
+  const a=gift?read(giftQty,{whole:true}):read(points), b=gift?read(giftPrice):read(factor);
+  if ([a,b].some(Number.isNaN)) {
+    calcResult("请检查输入",gift?"赠品数量须为非负整数，变现价须为非负数字。":"Mini 点数和变现倍数须为非负数字。");
+    return null;
+  }
+  if (gift&&!i) {calcResult("待填写","请在三级菜单选择一款基准产品。");return null;}
+  if (a===null||b===null) {calcResult("待填写","请填齐参数；实际为 0 时填 0。");return null;}
+  const base=gift?i.price*(six?6:1):1;
+  const net=gift?(base*p.rate-a*b)/base:p.rate-a*b/100;
+  if (!Number.isFinite(net)) {calcResult("无法计算","请输入有效数值。");return null;}
+  calcResult(six?`${money(Math.abs(net*base)<0.005?0:net*base)} / 6 支`:pct(net),
+    (gift?`赠品变现合计 ${money(a*b)}`:`客户实返 ${a} 点 · 变现 ${b} 倍`)+
+    (net<-1e-12?"；结果为负，请复核。":""));
+  return net;
+}
+function grossResult(note,dealer=null,client=null) {
+  text("gross-note",note);
+  text("dealer",dealer===null?"待填写":pct(dealer));
+  text("client",client===null?"待填写":pct(client));
+}
+function updateGross(p,net) {
+  const allowMini=p?.type==="mini", allowNet=Boolean(p&&p.type!=="unknown");
+  mode.options[1].disabled=!allowMini;mode.options[2].disabled=!allowNet;mode.disabled=!allowNet;
+  if ((!allowMini&&mode.value==="mini")||(!allowNet&&mode.value==="net")) mode.value="";
+  const mini=mode.value==="mini";
+  supply.disabled=promo.disabled=!mode.value;retained.disabled=!mini;
+  $("retained-field").hidden=!mini;
+  text("supply-label",mode.value==="net"?"客户裸价供货折扣（%）":"客户供货折扣（%）");
+  if (!p) return grossResult("请先选择二级分类。");
+  if (!allowNet) return grossResult("政策说明未识别，暂不测算毛利。");
+  if (!mode.value) return grossResult("请选择供货方式。");
+  const s=read(supply),a=read(promo,{positive:true}),r=mini?read(retained):0;
+  if ([s,a,r].some(Number.isNaN)) return grossResult("供货折扣、留取点数不能为负；活动折扣须大于 0%。");
+  if ([s,a,r].includes(null)) return grossResult(mini?"请填齐参数；没有留取 Mini 时填 0。":"请填齐供货折扣和活动折扣。");
+  const sr=s/100, ar=a/100;
+  let d,c,note;
+  if (mini) {
+    const b=read(points), f=read(factor);
+    if (!validRate(p)||!Number.isFinite(b)||!Number.isFinite(f)) return grossResult("请核对政策成本率，并填齐第二项的 Mini 参数。");
+    d=sr-p.rate+r*f/100;c=(ar+b*f/100-sr)/ar;
+    note=`客户实返 ${b} 点 · 经销商留取 ${r} 点 · 变现 ${f} 倍`;
+  } else {
+    if (!Number.isFinite(net)) return grossResult("请先完成第二项裸价测算。");
+    d=sr-net;c=(ar-sr)/ar;
+    note=`带入裸价率 ${pct(net)}`+(p.type==="six"?"（按同款 6 支零售价折算）":"");
+  }
+  if (![d,c].every(Number.isFinite)) return grossResult("结果超出范围，请核对输入。");
+  grossResult(note+((d<-1e-12||c<-1e-12)?"；有一方毛利为负，请复核。":""),d,c);
+}
+function calculate() {const p=current();updateGross(p,calcNet(p));}
+function selection(reset) {
+  if (reset) {
+    for (const field of calcInputs) {field.value="";field.removeAttribute("aria-invalid");}
+    mode.value=""; if (current()?.type==="six") giftQty.value="5";
+  }
+  renderQuery();calculate();
+}
+l1.addEventListener("change",()=>{sync2();sync3();selection(true);});
+l2.addEventListener("change",()=>{sync3();selection(true);});
+l3.addEventListener("change",()=>selection(false));
+mode.addEventListener("change",calculate);
+for (const field of calcInputs) field.addEventListener("input",calculate);
+fill(l1,"请选择一级品类",groups);sync2();sync3();selection(true);
+</script>
+<script>
+"use strict";
+(() => {
+  const plans=new Map(), names=["活动一","活动二","活动三"];
+  const totals=["整组零售价值","建议活动价","客户总成本","客户毛利额","客户毛利率"];
+  const headings=["条码","产品名称","数量","单件零售价","客户单件成本","零售小计","成本小计"];
+  const say=value=>text("export-status",value);
+  function btn(label,action) {
+    const b=el("button",label);b.type="button";b.addEventListener("click",action);return b;
+  }
+  function field(label,control) {const node=el("label",label);node.append(control);return node;}
+  function num(name,value="",whole=false) {
+    const n=el("input");n.type="number";n.min=whole?"1":"0";n.step=whole?"1":"0.01";
+    n.inputMode=whole?"numeric":"decimal";n.value=value;n.setAttribute("aria-label",name);return n;
+  }
+  function makeTable(headers) {
+    const table=el("table"), row=table.createTHead().insertRow();
+    for(const h of headers){const th=el("th",h);th.scope="col";row.append(th);}
+    return table;
+  }
+  function cents(node) {
+    const n=read(node), scaled=n*100, rounded=Math.round(scaled);
+    if (n===null) return null;
+    if (!Number.isSafeInteger(rounded)||Math.abs(scaled-rounded)>0.000001) {
+      node.setAttribute("aria-invalid","true");return null;
+    }
+    return rounded;
+  }
+  const showCents=n=>n===null?"—":money(n/100);
+  function refresh(p) {
+    let retail=0,cost=0,goodRetail=p.items.size>0,goodCost=goodRetail;
+    const price=cents(p.price), rows=[];
+    for (const {item,qty,unit,retailCell,costCell} of p.items.values()) {
+      const n=read(qty,{positive:true,whole:true}), u=cents(unit);
+      const r=n!==null&&Number.isSafeInteger(Math.round(item.price*100)*n)?Math.round(item.price*100)*n:null;
+      const c=n!==null&&u!==null&&Number.isSafeInteger(u*n)?u*n:null;
+      retailCell.textContent=showCents(r);costCell.textContent=showCents(c);
+      if(r===null)goodRetail=false;else retail+=r;
+      if(c===null)goodCost=false;else cost+=c;
+      rows.push([item.code,item.name,n,item.price,u===null?null:u/100,r===null?null:r/100,c===null?null:c/100]);
+    }
+    retail=goodRetail&&Number.isSafeInteger(retail)?retail:null;
+    cost=goodCost&&Number.isSafeInteger(cost)?cost:null;
+    const profit=price>0&&cost!==null?price-cost:null, margin=profit===null?null:profit/price;
+    const values=[retail,price,cost,profit].map(showCents).concat(pct(margin));
+    p.out.forEach((n,i)=>{n.textContent=values[i];});
+    const errors=[];
+    if (!p.items.size) errors.push("请选择至少一款产品");
+    else {
+      if (retail===null) errors.push("请核对产品数量");
+      if (cost===null) errors.push("请填齐客户单件成本，金额最多两位小数");
+    }
+    if (!(price>0)) errors.push("建议活动价须大于 0，金额最多两位小数");
+    p.msg.textContent=errors.length?errors.join("；")+"。":profit<0?"客户毛利为负，请复核成本和活动价。":"方案已填齐，可导出。";
+    p.msg.className=errors.length||profit<0?"alert":"muted";
+    return {name:p.name,values,rows,errors,note:p.note.value.trim()||"—",
+      figures:[retail/100,price/100,cost/100,profit/100,margin]};
+  }
+  function useCost(p,entry) {
+    if (l3.value!==entry.item.code) {
+      p.msg.textContent="请先在顶部三级菜单选中这一款产品，再带入第三项成本。";return;
+    }
+    const s=read(supply);
+    if (!mode.value||!Number.isFinite(s)) {
+      p.msg.textContent="请先在第三项选择供货方式，并填写客户供货折扣。";return;
+    }
+    let effective=s;
+    if (mode.value==="mini") {
+      const b=read(points),f=read(factor);
+      if (!Number.isFinite(b)||!Number.isFinite(f)) {p.msg.textContent="请先填齐第二项的 Mini 参数。";return;}
+      effective-=b*f;
+    }
+    const unit=entry.item.price*effective/100, rounded=Math.round(unit*100);
+    if (unit<-1e-10||!Number.isSafeInteger(rounded)) {p.msg.textContent="换算成本无效，请核对参数或手动填写。";return;}
+    entry.unit.value=(rounded/100).toFixed(2);refresh(p);
+  }
+  function picks(p) {
+    const q=p.search.value.trim().toLowerCase(), nodes=[];
+    for (const item of catalogue.values()) {
+      if (p.items.has(item.code)||!`${item.name} ${item.code}`.toLowerCase().includes(q)) continue;
+      const label=el("label");label.className="choice";
+      const c=el("input");c.type="checkbox";c.checked=p.pending.has(item.code);
+      c.addEventListener("change",()=>{
+        if(c.checked)p.pending.add(item.code);else p.pending.delete(item.code);
+        pickButton(p);
+      });
+      label.append(c,el("span",`${item.name} · ${item.code} · ${money(item.price)}`));nodes.push(label);
+    }
+    p.choices.replaceChildren(...(nodes.length?nodes:[el("p","暂无可添加的匹配产品。")]));
+    pickButton(p);
+  }
+  function pickButton(p) {
+    p.confirm.textContent=p.pending.size?`添加已勾选的 ${p.pending.size} 款产品`:"添加已勾选产品";
+    p.confirm.disabled=!p.pending.size;
+  }
+  function addItem(p,item) {
+    if (!item||p.items.has(item.code)) return;
+    const qty=num(`${item.name} 数量`,"1",true),unit=num(`${item.name} 客户单件成本`);
+    unit.placeholder="例如 35.50";
+    const actions=el("div");actions.className="toolbar";
+    const row=tableRow(p.body,[`${item.name} · ${item.code}`,money(item.price),qty,unit,"—","—",actions]);
+    const entry={item,qty,unit,retailCell:row.cells[4],costCell:row.cells[5]};
+    p.items.set(item.code,entry);
+    actions.append(btn("带入成本",()=>useCost(p,entry)),btn("移除",()=>{
+      p.items.delete(item.code);row.remove();picks(p);refresh(p);
+    }));
+    for(const n of [qty,unit])n.addEventListener("input",()=>refresh(p));
+  }
+  function addPlan(slot) {
+    const card=el("article"),p={name:names[slot],card,items:new Map(),pending:new Set()};
+    card.className="plan";card.append(el("h4",p.name));
+    if(slot>0) card.append(btn(`删除${p.name}`,()=>{
+      if(!window.confirm(`删除${p.name}及其中的填写内容？`))return;
+      plans.delete(slot);card.remove();$("add-plan").disabled=false;say(`${p.name}已删除。`);
+    }));
+    const picker=el("details");picker.append(el("summary","选择产品（可多选）"));
+    p.search=el("input");p.search.type="search";p.search.placeholder="搜索产品名称或条码";
+    p.search.setAttribute("aria-label",`${p.name}搜索产品`);
+    p.choices=el("div");p.choices.className="choices";
+    p.confirm=btn("添加已勾选产品",()=>{
+      for(const code of p.pending)addItem(p,catalogue.get(code));
+      p.pending.clear();picks(p);refresh(p);
+    });
+    p.search.addEventListener("input",()=>picks(p));
+    picker.append(p.search,p.choices,p.confirm);card.append(picker);
+    const wrap=el("div");wrap.className="scroll";wrap.tabIndex=0;wrap.setAttribute("aria-label",`${p.name}产品明细`);
+    const table=makeTable(["产品","单件零售价","数量","客户单件成本（元）","零售小计","成本小计","操作"]);
+    p.body=table.createTBody();wrap.append(table);card.append(wrap);
+    const fields=el("div");fields.className="two";
+    p.price=num(`${p.name}整组建议活动价`);p.price.placeholder="例如 199.00";
+    p.note=el("textarea");p.note.maxLength=1000;p.note.placeholder="例如活动机制、适用渠道或执行要求";
+    fields.append(field("建议活动价（元 / 整组）",p.price),field("活动备注（选填）",p.note));
+    p.price.addEventListener("input",()=>refresh(p));card.append(fields);
+    const box=el("div");box.className="box totals";
+    p.out=totals.map(title=>{
+      const group=el("div"),out=el("output","—");out.setAttribute("aria-label",title);
+      group.append(el("span",title),out);box.append(group);return out;
+    });
+    p.msg=el("p");p.msg.setAttribute("role","status");card.append(box,p.msg);
+    const later=[...plans.keys()].sort((a,b)=>a-b).find(key=>key>slot);
+    $("plans").insertBefore(card,later===undefined?null:plans.get(later).card);
+    plans.set(slot,p);$("add-plan").disabled=plans.size===names.length;
+    picks(p);refresh(p);
+  }
+
+  // 在浏览器本地打包标准 .xlsx / .docx，无需安装插件或上传数据。
+  const enc=new TextEncoder();
+  const esc=v=>String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g,"")
+    .replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]));
+  const xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const base="http://schemas.openxmlformats.org/";
+  const rns=base+"officeDocument/2006/relationships";
+  const rel=entries=>xml+`<Relationships xmlns="${base}package/2006/relationships">`+
+    entries.map(([id,type,target])=>`<Relationship Id="${id}" Type="${rns}/${type}" Target="${target}"/>`).join("")+"</Relationships>";
+  const mime="application/vnd.openxmlformats-";
+  const types=entries=>xml+`<Types xmlns="${base}package/2006/content-types">
+      <Default Extension="rels" ContentType="${mime}package.relationships+xml"/>
+      <Default Extension="xml" ContentType="application/xml"/>`+
+    entries.map(([name,type])=>`<Override PartName="/${name}" ContentType="${mime}officedocument.${type}+xml"/>`).join("")+"</Types>";
+  function zip(files,mimetype) {
+    const contents=[], directory=[];
+    let offset=0,dirSize=0;
+    for(const [name,value] of Object.entries(files)){
+      const filename=enc.encode(name),data=enc.encode(value);
+      let crc=-1;
+      for(const byte of data){crc^=byte;for(let k=0;k<8;k++)crc=(crc>>>1)^(-(crc&1)&0xEDB88320);}
+      crc=(crc^-1)>>>0;
+      const local=new Uint8Array(30),central=new Uint8Array(46);
+      const l=new DataView(local.buffer),c=new DataView(central.buffer);
+      l.setUint32(0,0x04034b50,true);l.setUint16(4,20,true);l.setUint16(12,33,true);
+      l.setUint32(14,crc,true);l.setUint32(18,data.length,true);l.setUint32(22,data.length,true);l.setUint16(26,filename.length,true);
+      c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(14,33,true);
+      c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);
+      c.setUint16(28,filename.length,true);c.setUint32(42,offset,true);
+      contents.push(local,filename,data);directory.push(central,filename);
+      offset+=local.length+filename.length+data.length;dirSize+=central.length+filename.length;
+    }
+    const end=new Uint8Array(22),d=new DataView(end.buffer),count=Object.keys(files).length;
+    d.setUint32(0,0x06054b50,true);d.setUint16(8,count,true);d.setUint16(10,count,true);
+    d.setUint32(12,dirSize,true);d.setUint32(16,offset,true);
+    return new Blob([...contents,...directory,end],{type:mimetype});
+  }
+  function download(files,ext,kind) {
+    const name=`组合活动方案.${ext}`,url=URL.createObjectURL(zip(files,mime+"officedocument."+kind));
+    const a=el("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);say(`已发起下载：${name}。`);
+  }
+  function excel(list) {
+    const ns=base+"spreadsheetml/2006/main";
+    const parts={"_rels/.rels":rel([["rId1","officeDocument","xl/workbook.xml"]])};
+    const definitions=[["xl/workbook.xml","spreadsheetml.sheet.main"],["xl/styles.xml","spreadsheetml.styles"]];
+    const refs=[["styles","styles","styles.xml"]];
+    parts["xl/styles.xml"]=xml+`<styleSheet xmlns="${ns}">
+      <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+      <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+      <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+      <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+      <cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+      <xf numFmtId="2" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+      <xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>
+      <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    list.forEach((p,i)=>{
+      const target=`worksheets/sheet${i+1}.xml`,path="xl/"+target;
+      refs.push([`rId${i+1}`,"worksheet",target]);definitions.push([path,"spreadsheetml.worksheet"]);
+      const rows=[[p.name],totals,p.figures,["活动备注",p.note],[],headings,...p.rows];
+      const cells=rows.map((row,r)=>`<row r="${r+1}">`+row.map((value,c)=>{
+        const ref=`${String.fromCharCode(65+c)}${r+1}`;
+        if(typeof value!=="number")return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${esc(value)}</t></is></c>`;
+        const style=r===2?(c===4?2:1):(r>=6&&c>=3?1:0);
+        return `<c r="${ref}" s="${style}"><v>${value}</v></c>`;
+      }).join("")+"</row>").join("");
+      parts[path]=xml+`<worksheet xmlns="${ns}"><cols>
+        <col min="1" max="1" width="21" customWidth="1"/><col min="2" max="2" width="54" customWidth="1"/>
+        <col min="3" max="7" width="18" customWidth="1"/></cols><sheetData>${cells}</sheetData></worksheet>`;
+    });
+    parts["xl/workbook.xml"]=xml+`<workbook xmlns="${ns}" xmlns:r="${rns}"><sheets>`+
+      list.map((p,i)=>`<sheet name="${esc(p.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")+"</sheets></workbook>";
+    parts["xl/_rels/workbook.xml.rels"]=rel(refs);parts["[Content_Types].xml"]=types(definitions);
+    download(parts,"xlsx","spreadsheetml.sheet");
+  }
+  const formattedRow=row=>row.map((v,i)=>i>=3?money(v):v);
+  function word(list) {
+    const path="word/document.xml", ns=base+"wordprocessingml/2006/main";
+    function para(v,bold=false) {
+      return "<w:p><w:r>"+(bold?"<w:rPr><w:b/></w:rPr>":"")+
+        String(v).split(/\r\n|\r|\n/).map(s=>`<w:t xml:space="preserve">${esc(s)}</w:t>`).join("<w:br/>")+"</w:r></w:p>";
+    }
+    const widths=[1500,2850,500,1150,1150,1150,1150];
+    const content=list.map((p,i)=>{
+      const grid=widths.map(w=>`<w:gridCol w:w="${w}"/>`).join("");
+      const rows=[headings,...p.rows.map(formattedRow)].map((row,index)=>"<w:tr>"+
+        (index===0?"<w:trPr><w:tblHeader/></w:trPr>":"")+
+        row.map((v,j)=>`<w:tc><w:tcPr><w:tcW w:w="${widths[j]}" w:type="dxa"/></w:tcPr>${para(v,index===0)}</w:tc>`).join("")+"</w:tr>").join("");
+      const borders=["top","left","bottom","right","insideH","insideV"].map(side=>`<w:${side} w:val="single" w:sz="4" w:color="BFCBE0"/>`).join("");
+      return (i?'<w:p><w:r><w:br w:type="page"/></w:r></w:p>':"")+para(p.name,true)+
+        para(totals.map((h,j)=>`${h}：${p.values[j]}`).join(" ｜ "))+para(`活动备注：${p.note}`)+
+        `<w:tbl><w:tblPr><w:tblW w:w="9450" w:type="dxa"/><w:tblBorders>${borders}</w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rows}</w:tbl>`;
+    }).join("");
+    download({"[Content_Types].xml":types([[path,"wordprocessingml.document.main"]]),
+      "_rels/.rels":rel([["rId1","officeDocument",path]]),
+      [path]:xml+`<w:document xmlns:w="${ns}"><w:body>${para("组合活动方案",true)}${content}
+        <w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/></w:sectPr>
+      </w:body></w:document>`},"docx","wordprocessingml.document");
+  }
+  function pdf(list) {
+    const report=$("report");report.replaceChildren(el("h3","组合活动方案"));
+    for(const p of list) {
+      const article=el("article"),table=makeTable(headings),body=table.createTBody();
+      article.append(el("h4",p.name),el("p",totals.map((h,i)=>`${h}：${p.values[i]}`).join(" ｜ ")),
+        el("p",`活动备注：${p.note}`),table);
+      for(const row of p.rows)tableRow(body,formattedRow(row));
+      report.append(article);
+    }
+    say("请在打印窗口将打印机选择为「另存为 PDF」。");
+    document.body.classList.add("printing");
+    window.addEventListener("afterprint",()=>document.body.classList.remove("printing"),{once:true});
+    try {window.print();} catch(error) {document.body.classList.remove("printing");throw error;}
+  }
+  $("add-plan").addEventListener("click",()=>{
+    const slot=names.findIndex((_,i)=>!plans.has(i));
+    if(slot>=0){addPlan(slot);say(`${names[slot]}已添加。`);}
+  });
+  for(const [id,action] of [["xlsx",excel],["docx",word],["pdf",pdf]]) {
+    $(id).addEventListener("click",()=>{
+      const list=[...plans.entries()].sort(([a],[b])=>a-b).map(([,p])=>refresh(p));
+      const incomplete=list.filter(p=>p.errors.length);
+      if(incomplete.length) {
+        say("请补齐方案后再导出："+incomplete.map(p=>`${p.name}（${p.errors.join("；")}）`).join("、")+"。不需要的活动二或三可以删除。");
+        return;
+      }
+      try {action(list);}
+      catch(e){say("未能导出，请用 Edge 或 Chrome 打开本地 HTML 后重试。");console.error(e);}
+    });
+  }
+  addPlan(0);
+})();
+</script>
 </body>
 </html>
